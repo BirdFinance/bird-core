@@ -19,3 +19,7 @@ cache
 deployments
 
 tests
+
+dist
+
+db

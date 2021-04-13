@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 
-pragma solidity ^0.6.0;
+pragma solidity >=0.5.0 <0.8.0;
 
-interface IWHT {
+interface IWBNB {
     function deposit() external payable;
 
     function transfer(address to, uint value) external returns (bool);
