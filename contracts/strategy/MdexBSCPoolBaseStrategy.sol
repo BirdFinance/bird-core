@@ -116,10 +116,9 @@ abstract contract MdexBSCPoolBaseStrategy is BaseStrategy  {
         swapMining = _swapMining;
     }
 
-
-    function getPoolRewardApy() override external view returns (uint256 apy){
+    function getPoolRewardApy() override external view returns (uint256 apy100){
         //apy = totalProduction in usdt over one year / total stake in usdt
-        (,uint256 allocPoint,,,,) = pool.poolInfo(poolID);
+        (,uint256 allocPoint,,,,uint256 totalAmount) = pool.poolInfo(poolID);
         uint256 mdxPerBlock = pool.mdxPerBlock();
         uint256 totalAllocPoint = pool.totalAllocPoint();
         //underlying block time is 3 seconds
@@ -129,7 +128,11 @@ abstract contract MdexBSCPoolBaseStrategy is BaseStrategy  {
         //price = usdt / mdx
         (uint256 usdt, uint256 mdx,)=IMdexPair(MDX_USDT_PAIR).getReserves();
 
-        (,uint256 vaultValue,) = vault_.getCapitalPriceAndValue();
-        apy = totalProductionPerYear.mul(usdt).div(mdx).div(vaultValue);
+        /*
+                totalProductionPerYear * usdt / mdx
+        apy =  -----------------------------------------------
+                 totalAmount * capitalPrice / 10**18
+        */
+        apy100 = totalProductionPerYear.mul(baseCent).mul(usdt).mul(baseDecimal).div(mdx).div(totalAmount).div(this.getCapitalPrice());
     }
 }

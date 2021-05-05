@@ -17,7 +17,11 @@ contract Complex {
 
 
     uint256 constant baseDecimal = 1e18;
+    uint256 constant baseCent = 100;
     address constant USDT_ADDRESS = 0x55d398326f99059fF775485246999027B3197955;
+    address constant MDX_ADDRESS = 0x9C65AB58d8d978DB963e63f2bfB7121627e3a739;
+    address constant MDX_USDT_PAIR = 0xe1cBe92b5375ee6AfE1B22b555D257B4357F6C68;
+
     address public bird;
     address public mdexFactory;
     constructor(address _bird, address _mdexFactory) public {
@@ -57,18 +61,26 @@ contract Complex {
         uint256 capitalPrice18,
         uint256 vaultTVL,
         uint256 bTokenPrice18,
-        uint256 rewardAPY,
+        uint256 rewardAPY100,
         uint256 miningTVL,
-        uint256 miningAPY
+        uint256 miningAPY100
     ){
         (capitalPrice18, vaultTVL, bTokenPrice18) = vault.getCapitalPriceAndValue();
-        rewardAPY = IStrategy(vault.strategy()).getPoolRewardApy();
+
+
+        rewardAPY100 = IStrategy(vault.strategy()).getPoolRewardApy();
+
 
         //staked bToken
         miningTVL = miningPool.totalSupply().mul(bTokenPrice18).div(baseDecimal);
 
+        if (miningTVL == 0) {
+            miningAPY100 = 0;
+        } else {
+            //miningAPY100 = miningPool.rewardRate().mul(365 * 86400).mul(birdPrice).mul(baseCent).div(baseDecimal).div(miningTVL);
 
-        miningAPY = miningPool.rewardRate().mul(365 * 86400).mul(birdPrice).div(baseDecimal).div(miningTVL);
+            miningAPY100 = miningPool.rewardRate().mul(31536000).mul(birdPrice).div(1e16).div(miningTVL);
+        }
     }
 
     function birdPrice() public view returns (uint256 price18){
@@ -84,5 +96,11 @@ contract Complex {
         }
 
         price18 = baseDecimal.mul(reserve1).div(reserve0);
+    }
+
+    function mdxPrice() public view returns (uint256 price18){
+        //usdt, mdx
+        (uint256 usdt,uint256 mdx,) = IMdexPair(MDX_USDT_PAIR).getReserves();
+        return baseDecimal.mul(usdt).div(mdx);
     }
 }

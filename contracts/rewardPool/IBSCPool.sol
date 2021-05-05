@@ -11,7 +11,7 @@ interface IBSCPool {
 
     function userInfo(uint256 _pid, address _user) external view returns (uint256 amount, uint256 rewardDebt);
 
-    function poolInfo(uint256 _pid) external view returns (address lpToken, uint256 allocPoint, uint256, uint256, uint256, uint256);
+    function poolInfo(uint256 _pid) external view returns (address lpToken, uint256 allocPoint, uint256 lastRewardBlock, uint256 accMdxPerShare, uint256 accMultLpPerShare, uint256 totalAmount);
 
     function emergencyWithdraw(uint256 pid) external;
 

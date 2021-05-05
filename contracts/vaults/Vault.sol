@@ -182,7 +182,12 @@ abstract contract Vault is IVault, ERC20, ReentrancyGuard, Controllerable {
         capitalPrice18 = strategy_.getCapitalPrice();
         uint256 capitalBal = capitalBalance();
         capitalValue = capitalBal.mul(capitalPrice18).div(baseDecimal);
-        bTokenPrice18 = capitalPrice18.mul(capitalBal).div(totalSupply());
+        if(totalSupply()==0){
+            bTokenPrice18 = 0;
+        }else{
+            bTokenPrice18 = capitalPrice18.mul(capitalBal).div(totalSupply());
+
+        }
     }
 
     function idleCapital() public virtual view returns (uint256);

@@ -17,6 +17,7 @@ abstract contract BaseStrategy is IStrategy, Ownable, Controllerable {
 
     uint256 public constant  PERCENT = 100;
     uint256 constant baseDecimal = 1e18;
+    uint256 constant baseCent = 100;
 
     uint256 public profitFee;
     address public swapRouter;

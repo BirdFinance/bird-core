@@ -23,5 +23,5 @@ interface IStrategy {
 
     function getCapitalPrice() external view returns(uint256 price18);
 
-    function getPoolRewardApy() external view returns (uint256 apy);
+    function getPoolRewardApy() external view returns (uint256 apy100);
 }

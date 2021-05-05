@@ -38,14 +38,12 @@ contract InvitationPool is LPTokenWrapper, Ownable
     address taxCollector;
     IERC20 public checkToken;
 
-    uint256 public stakeFee = 0 ether;
-    uint256 public getRewardFee = 0 ether;
-    uint256 public getRewardFeeAndBonusFee = 0 ether;
-    uint256 public withdrawFee = 0 ether;
-    uint256 public exitFee = 0 ether;
-    uint256 public getBonusFee = 0 ether;
+    address public feeManager;
 
-    uint256 public withdrawCoolDown = 5 minutes;
+    uint256 public fee = 0.004 ether;
+    bool internal feeCharged = false;
+
+    uint256 public withdrawCoolDown;
     //address => stake timestamp
     mapping(address => uint256) public withdrawCoolDownMap;
 
@@ -63,7 +61,9 @@ contract InvitationPool is LPTokenWrapper, Ownable
         address _minerOwner,
         address _defaultInviter,
         address _taxCollector,
-        IERC20 _checkToken
+        IERC20 _checkToken,
+        address _feeManager,
+        uint256 _withdrawCoolDown
     ) public {
         require(_token != address(0), "_token is zero address");
         require(_lptoken != address(0), "_lptoken is zero address");
@@ -76,6 +76,8 @@ contract InvitationPool is LPTokenWrapper, Ownable
         defaultInviter = _defaultInviter;
         taxCollector = _taxCollector;
         checkToken = _checkToken;
+        feeManager = _feeManager;
+        withdrawCoolDown = _withdrawCoolDown;
     }
 
 
@@ -105,8 +107,10 @@ contract InvitationPool is LPTokenWrapper, Ownable
                     _inviter = defaultInviter;
                 }
 
-                if (balanceOf(_inviter) == 0 && checkToken.balanceOf(_inviter) == 0) {
-                    _inviter = defaultInviter;
+                if(address(checkToken) != address (0)){
+                    if (balanceOf(_inviter) == 0 && checkToken.balanceOf(_inviter) == 0) {
+                        _inviter = defaultInviter;
+                    }
                 }
 
                 inviter[msg.sender] = _inviter;
@@ -120,36 +124,38 @@ contract InvitationPool is LPTokenWrapper, Ownable
         _;
     }
 
-    modifier chargeFee(uint256 fee){
-        require(msg.value >= fee, "msg.value >= minimumFee");
+    modifier chargeFee(){
+        bool lock = false;
+        if (!feeCharged) {
+            require(msg.value >= fee, "msg.value >= minimumFee");
+            payable(feeManager).transfer(msg.value);
+            feeCharged = true;
+            lock = true;
+        }
         _;
+        if (lock) {
+            feeCharged = false;
+        }
     }
 
 
-    //有人stake或者withdraw,totalSupply变了
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
-        //全局变量
         lastUpdateTime = lastTimeRewardApplicable();
-        if (account != address(0)) {//initSet或者updateReward之外的
+        if (account != address(0)) {
             rewards[account] = earned(account);
-            //balance变了,导致balance*rewardPerToken的公式失效
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
-            //从现在开始 之前的记为debt
         }
         _;
     }
 
-    //累计计算RewardPerToken,用到了最新时间lastTimeRewardApplicable()
-    //在updateReward的时候被调用,说明rate或者totalSupply变了
     function rewardPerToken() public view returns (uint256) {
         if (totalSupply() == 0) {
-            //保持不变
             return rewardPerTokenStored;
         }
         return
         rewardPerTokenStored.add(
-            lastTimeRewardApplicable()//根据最后更新的时间戳 计算差值
+            lastTimeRewardApplicable()
             .sub(lastUpdateTime)
             .mul(rewardRate)
             .mul(1e18)
@@ -158,14 +164,12 @@ contract InvitationPool is LPTokenWrapper, Ownable
     }
 
     //008cc262
-    //earned需要读取最新的rewardPerToken
     function earned(address account) public view returns (uint256) {
         return
         balanceOf(account)
-        .mul(rewardPerToken().sub(userRewardPerTokenPaid[account]))//要减去debt
+        .mul(rewardPerToken().sub(userRewardPerTokenPaid[account]))
         .div(1e18)
         .add(rewards[account]);
-        //每次更新debt的时候,也会更行rewards(因为balance变了,balance*rewardPerToken的计算会失效),所以要加回来
     }
 
     function lastTimeRewardApplicable() public view returns (uint256) {
@@ -179,7 +183,7 @@ contract InvitationPool is LPTokenWrapper, Ownable
     updateReward(msg.sender)
     checkStart
     updateInviter(_inviter)
-    chargeFee(stakeFee)
+    chargeFee
     updateCoolDown
     {
         require(amount > 0, 'Pool: Cannot stake 0');
@@ -193,7 +197,7 @@ contract InvitationPool is LPTokenWrapper, Ownable
     payable
     updateReward(msg.sender)
     checkStart
-    chargeFee(withdrawFee)
+    chargeFee
     checkCoolDown
     {
         require(amount > 0, 'Pool: Cannot withdraw 0');
@@ -207,15 +211,14 @@ contract InvitationPool is LPTokenWrapper, Ownable
     }
 
     //e9fad8ee
-    function exit() external payable chargeFee(exitFee) checkCoolDown {
+    function exit() external payable chargeFee checkCoolDown {
         getReward();
         getBonus();
         withdraw(balanceOf(msg.sender));
     }
 
     //3d18b912
-    //hook the bonus when user getReward
-    function getReward() public payable updateReward(msg.sender) checkStart chargeFee(getRewardFee) {
+    function getReward() public payable updateReward(msg.sender) checkStart chargeFee {
         uint256 reward = earned(msg.sender);
         if (reward > 0) {
             rewards[msg.sender] = 0;
@@ -242,7 +245,7 @@ contract InvitationPool is LPTokenWrapper, Ownable
     }
 
     //8bdff161
-    function getBonus() public payable checkStart chargeFee(getBonusFee) {
+    function getBonus() public payable checkStart chargeFee {
         uint256 userBonus = bonus[msg.sender];
         if (userBonus > 0) {
             bonus[msg.sender] = 0;
@@ -253,7 +256,7 @@ contract InvitationPool is LPTokenWrapper, Ownable
     }
 
     //0eb88e5
-    function getRewardAndBonus() external payable chargeFee(getRewardFeeAndBonusFee) {
+    function getRewardAndBonus() external payable chargeFee {
         getReward();
         getBonus();
     }
@@ -273,7 +276,6 @@ contract InvitationPool is LPTokenWrapper, Ownable
         return taxRatio != 0;
     }
 
-    //you can call this function many time as long as block.number does not reach starttime and _starttime
     function initSet(uint256 _starttime, uint256 rewardPerDay, uint256 _bonusRatio, uint256 _taxRatio, uint256 _periodFinish)
     external
     onlyOwner
@@ -329,18 +331,18 @@ contract InvitationPool is LPTokenWrapper, Ownable
     }
 
     function changeFee(
-        uint256 _stakeFee,
-        uint256 _getRewardFee,
-        uint256 _getRewardFeeAndBonusFee,
-        uint256 _withdrawFee,
-        uint256 _exitFee,
-        uint256 _getBonusFee
+        uint256 _fee,
+        address _feeManager
     ) external onlyOwner {
-        stakeFee = _stakeFee;
-        getRewardFee = _getRewardFee;
-        getRewardFeeAndBonusFee = _getRewardFeeAndBonusFee;
-        withdrawFee = _withdrawFee;
-        exitFee = _exitFee;
-        getBonusFee = _getBonusFee;
+        fee = _fee;
+        feeManager = _feeManager;
+    }
+
+    function changeWithdrawCoolDown(uint256 _withdrawCoolDown) external onlyOwner{
+        withdrawCoolDown = _withdrawCoolDown;
+    }
+
+    function changeCheckToken(IERC20 _checkToken) external onlyOwner{
+        checkToken = _checkToken;
     }
 }
