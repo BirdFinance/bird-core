@@ -71,7 +71,7 @@ contract MdexBSCPoolSingleStrategy is MdexBSCPoolBaseStrategy {
     }
 
 
-    function setMdexRoutes(address[] memory _mdexRoutes, address[] memory _mdexPriceCalcRoutes) onlyOwner external {
+    function setMdexRoutes(address[] calldata _mdexRoutes, address[] calldata _mdexPriceCalcRoutes) onlyOwner external {
         require(_mdexRoutes[0] == address(rewardToken), "mdexRoutes[0] == address(rewardToken)");
         require(_mdexRoutes[_mdexRoutes.length.sub(1)] == address(capital_), "mdexRoutes[mdexRoutes.length.sub(1)] == address(capital_)");
         mdexRoutes = _mdexRoutes;

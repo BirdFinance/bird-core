@@ -281,7 +281,7 @@ contract BirdToken is Context, IERC20, Ownable {
         uint256 currentRate = _getRate();
         uint256 rManagement = tManagement.mul(currentRate);
         _rOwned[feeMgr] = _rOwned[feeMgr].add(rManagement);
-        if (_isExcluded[address(this)])
+        if (_isExcluded[feeMgr])
             _tOwned[feeMgr] = _tOwned[feeMgr].add(tManagement);
     }
 

@@ -112,7 +112,7 @@ contract MdexBSCPoolLPStrategy is MdexBSCPoolBaseStrategy {
         }
     }
 
-    function setMdexRoutes(address[] memory _mdexRoutesRewardToLp0, address[] memory _mdexRoutesLp0ToLp1, address[] memory _mdexPriceCalcRoutes) onlyOwner external {
+    function setMdexRoutes(address[] calldata _mdexRoutesRewardToLp0, address[] calldata _mdexRoutesLp0ToLp1, address[] calldata _mdexPriceCalcRoutes) onlyOwner external {
         address lpToken0 = IMdexPair(address(capital_)).token0();
         address lpToken1 = IMdexPair(address(capital_)).token1();
 
